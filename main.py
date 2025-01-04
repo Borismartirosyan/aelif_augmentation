@@ -11,7 +11,7 @@ def main():
     config = OmegaConf.load("config.yaml")
     pipe  = AELIFAugmentationPipeline()
     types = AugmentationModel(
-        config.augmentation_types
+        **config.augmentation_types
     )
     pipe.augmentation_trial_function(
         prompt_file_path=config.prompts_file_path,
