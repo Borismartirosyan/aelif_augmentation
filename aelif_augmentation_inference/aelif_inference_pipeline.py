@@ -6,7 +6,7 @@ from schemas import AugmentationModel
 from PIL import Image
 from json.decoder import JSONDecodeError
 from typing import List
-from time import time
+import time
 import json
 import sys
 sys.path.append('../aelif_augmentation')
