@@ -2,7 +2,7 @@ import torch
 from custom_sd3_pipeline import StableDiffusion3Pipeline
 from transformers import T5EncoderModel, BitsAndBytesConfig
 import clip
-from schemas import AugmentationModel
+from .schemas import AugmentationModel
 from PIL import Image
 from json.decoder import JSONDecodeError
 from typing import List

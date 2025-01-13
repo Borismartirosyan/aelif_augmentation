@@ -1,35 +1,55 @@
-# Use an official Python runtime as a parent image
-FROM python:3.8-slim
+# Use the official PyTorch Docker image as the base image for latest torch
+FROM pytorch/pytorch:2.5.1-cuda12.1-cudnn9-devel
 
-# Set the working directory
-WORKDIR /app
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1
 
-# Install git and any required dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+ENV PYTHONPATH="/workspace:/workspace/diffusers:/workspace/CLIP:/workspace/aelif/:/workspace/aelif/aelif_augmentation_inference/:/workspace/aelif:{PYTHONPATH}"
+# Install additional system dependencies if needed
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    wget \
+    curl \
+    ca-certificates \
+    git && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy all necessary files into the container
-COPY . /app
+# Install Python packages
+RUN pip install --no-cache-dir \
+    omegaconf==2.3.0 \
+    transformers==4.47.1 \
+    pydantic==2.10.4 \
+    bitsandbytes==0.45.0 \
+    pillow==11.1.0 \
+    accelerate==1.2.1 \
+    diffusers==0.32.1 \
+    protobuf==5.29.3 \
+    sentencepiece==0.2.0
 
-# Clone and install the diffusers repository
-RUN git clone https://github.com/Borismartirosyan/diffusers.git \
-    && cd diffusers \
-    && pip install -e .
-
-# Login to Hugging Face
+# Authenticate Hugging Face CLI
 RUN huggingface-cli login --token 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
 
-RUN pip install -U bitsandbytes
+# Set working directory
+WORKDIR /workspace
 
-RUN cd /content/aelif_augmentation/ && mkdir res
+RUN mkdir -p /root/.cache/huggingface/
 
-# Clone and install the CLIP repository
+# Clone and install diffusers
+# RUN git clone https://github.com/Borismartirosyan/diffusers.git \
+#     && cd diffusers \
+#     && pip install -e .
+
+# Clone and install CLIP
 RUN git clone https://github.com/openai/CLIP.git \
     && cd CLIP \
     && pip install -e .
 
-RUN pip3 install -r requirements.txt
+# Copy main.py into the container
+COPY . /workspace/aelif
 
-# Command to run the container
-CMD ["cd", "/content/aelif_augmentation/", "&&", "python3", "main.py"]
+# Set working directory
+WORKDIR /workspace/aelif
+# RUN /opt/conda/bin/python main.py
+# # Run main.py as default
+# CMD ["python3", "main.py"]
