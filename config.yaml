@@ -3,7 +3,7 @@ standard_deviations: [0, 0.1, 1, 10, 100]
 augmentation_types:
     noise_conv : true
     mask: false
-save_path: '.'
+save_path: '/workspace/aelif/results.json'
 img_height: 768
 img_width: 768
 num_inference_steps: 28

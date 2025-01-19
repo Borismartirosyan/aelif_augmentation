@@ -50,6 +50,8 @@ COPY . /workspace/aelif
 
 # Set working directory
 WORKDIR /workspace/aelif
+
+RUN mkdir res
 # RUN /opt/conda/bin/python main.py
 # # Run main.py as default
-# CMD ["python3", "main.py"]
+CMD ["python3", "main.py"]
