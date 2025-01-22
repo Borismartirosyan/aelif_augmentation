@@ -9,6 +9,7 @@ from typing import List
 import time
 import json
 import sys
+from scipy.stats import wasserstein_distance, wasserstein_distance_nd
 sys.path.append('../aelif_augmentation')
 sys.path.append('../aelif_augmentation/aelif_augmentation_inference')
 from aelif_augmentation_inference.custom_sd3_pipeline import StableDiffusion3Pipeline
@@ -45,12 +46,30 @@ class AELIFAugmentationPipeline:
         except Exception as e:
             print(f"Error loading CLIP model: {e}")
             raise
+    
+    def get_image_or_text_embeddings(self, img, text):
 
+      if img is not None:
+        img_emb = self.model.encode_image(
+            self.preprocess(
+                img
+                ).unsqueeze(0).to(self.device))
+        return img_emb
+      elif text is not None:
+        text_tokens = clip.tokenize(text, truncate=True).to(self.device)
+        text_embeddings = self.model.encode_text(text_tokens)
+
+        text_embeddings /= text_embeddings.norm(dim=-1, keepdim=True)
+        return text_embeddings
+      else:
+        raise ValueError("Either image or text must be provided")
+        
     def augmentation_trial_function(self,
                                     prompt_file_path: str,
                                     standard_deviations: List[float],
                                     augmentation_types: AugmentationModel,
                                     save_path: str,
+                                    distance_metric : str = 'wasserstain',
                                     img_height: int = 768,
                                     img_width: int = 768,
                                     num_inference_steps: int = 28,
@@ -125,7 +144,8 @@ class AELIFAugmentationPipeline:
                             prompt=prompt,
                             model=self.model,
                             preprocess=self.preprocess,
-                            device=self.device
+                            device=self.device,
+                            distance_metric=distance_metric
                         )
 
                         results[aug_type][image_key] = similarity
@@ -178,7 +198,8 @@ class AELIFAugmentationPipeline:
                             prompt=prompt,
                             model=self.model,
                             preprocess=self.preprocess,
-                            device=self.device
+                            device=self.device,
+                            distance_metric=distance_metric
                         )
 
                         results[aug_type][image_key] = similarity
@@ -199,7 +220,7 @@ class AELIFAugmentationPipeline:
                                          model,
                                          preprocess,
                                          device: torch.device,
-                                         cos=torch.nn.CosineSimilarity(dim=1)):
+                                         distance_metric: str):
         if prompt in embed_dict:
             orig_emb = embed_dict[prompt]
         else:
@@ -207,8 +228,136 @@ class AELIFAugmentationPipeline:
             embed_dict[prompt] = orig_emb
 
         aug_emb = model.encode_image(preprocess(augmented_image).unsqueeze(0).to(device))
-
-        similarity = cos(orig_emb, aug_emb).item()
-        similarity = (similarity + 1) / 2  # Normalize to [0,1]
-
+        
+        if distance_metric == 'cosine':
+            similarity = self.compute_consine_similarity_on_vectors(orig_emb, aug_emb).item()
+        elif distance_metric == 'wasserstain':
+            similarity = self.compute_wasserstein_distance_on_vectors(orig_emb, aug_emb).item()
+        
         return similarity, embed_dict
+    
+    def calculate_distance_between_distributions(
+        self,
+        seed_array: List[int],
+        prompt: str,
+        augmentation_type: str,
+        prompt_key: int,
+        augmentation_percentage: float,
+        distance_function : str = 'wasserstain',
+        std_aelif: float = None,
+        mean_aelif: float = None,
+        height: int = 768,
+        width: int = 768,
+        guidance_scale: float = 7.0,
+        num_inference_steps: int = 28
+    ):
+        # TODO: implement for mask
+
+        original_image_embeddings = {}
+        augmented_image_embeddings = {}
+
+        for seed in seed_array:
+            generator = torch.Generator(device='cpu').manual_seed(seed)
+            image = self.pipe(
+                prompt=prompt,
+                num_inference_steps=num_inference_steps,
+                height=height,
+                width=width,
+                guidance_scale=guidance_scale,
+                generator=generator,
+                aelif=augmentation_type,
+                aelif_percentage=0
+            ).images[0]
+            img_embeddings = self.get_image_or_text_embeddings(img=image, text=None)
+            img_name = f'prompt_{prompt_key}_seed_{seed}_original'
+            original_image_embeddings[img_name] = img_embeddings
+            image.save(f'res/{img_name}.png')
+
+        for seed in seed_array:
+            generator = torch.Generator(device='cpu').manual_seed(seed)
+            image = self.pipe(
+                prompt=prompt,
+                num_inference_steps=num_inference_steps,
+                height=height,
+                width=width,
+                guidance_scale=guidance_scale,
+                generator=generator,
+                aelif=augmentation_type,
+                aelif_percentage=augmentation_percentage,
+                std_aelif=std_aelif,
+                mean_aelif=mean_aelif
+            ).images[0]
+            img_embeddings = self.get_image_or_text_embeddings(img=image, text=None)
+            img_name = f'prompt_{prompt_key}_seed_{seed}_augmented'
+            augmented_image_embeddings[img_name] = img_embeddings
+            image.save(f'res/{img_name}.png')
+
+        orig_dist = torch.stack(list(original_image_embeddings.values()))
+        augmented_dist = torch.stack(list(augmented_image_embeddings.values()))
+        
+        if distance_function == "wasserstain":
+            dist = self.compute_wasserstein_distance_on_matrices(orig_dist, augmented_dist)
+        elif distance_funtion == "cosine":
+            dist = self.cosine_similarity_on_matrix_rowwise(orig_dist, augmented_dist)
+        return dist
+
+
+    def cosine_similarity_on_matrix_rowwise(self, P, Q):
+
+        P = P.squeeze(1)
+        Q = Q.squeeze(1)
+
+        dot_products = torch.sum(P * Q, dim=1)
+
+        # Compute the norms for each row in P and Q
+        row_norms_P = torch.norm(P, dim=1)
+        row_norms_Q = torch.norm(Q, dim=1)
+
+        # Compute cosine similarity with safe division
+        cosine_similarities = dot_products / (row_norms_P * row_norms_Q + 1e-8)
+
+        return cosine_similarities
+    
+    def compute_consine_similarity_on_vectors(self, P, Q):
+        dot_product = torch.sum(P * Q)
+        norm_P = torch.norm(P)
+        norm_Q = torch.norm(Q)
+        cosine_similarity = dot_product / (norm_P * norm_Q)
+        return cosine_similarity
+    
+    def compute_wasserstein_distance_on_matrices(self, M: torch.Tensor, N: torch.Tensor) -> float:
+        
+        M = M.squeeze(1)
+        N = N.squeeze(1)
+        
+        if M.shape != N.shape:
+            raise ValueError("M and N must have the same shape.")
+
+        # Ensure M and N are in numpy format for compatibility with scipy
+        M_np = M.detach().cpu().numpy()
+        N_np = N.detach().cpu().numpy()
+
+        # Calculate the Wasserstein distance in n-dimensional space
+        distance = wasserstein_distance_nd(M_np, N_np)
+
+        return distance
+    
+    def compute_wasserstein_distance_on_vectors(self, v1: torch.Tensor, v2: torch.Tensor) -> float:
+
+        v1 = v1.squeeze()
+        v2 = v2.squeeze()
+
+        if v1.ndim != 1 or v2.ndim != 1:
+            raise ValueError("v1 and v2 must be 1-dimensional tensors (vectors).")
+
+        if v1.shape != v2.shape:
+            raise ValueError("v1 and v2 must have the same shape.")
+
+        # Convert tensors to numpy arrays
+        v1_np = v1.detach().cpu().numpy()
+        v2_np = v2.detach().cpu().numpy()
+
+        # Compute the Wasserstein distance
+        distance = wasserstein_distance(v1_np, v2_np)
+
+        return distance

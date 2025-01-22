@@ -4,6 +4,8 @@ FROM pytorch/pytorch:2.5.1-cuda12.1-cudnn9-devel
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1
+    
+RUN ls 
 
 ENV PYTHONPATH="/workspace:/workspace/diffusers:/workspace/CLIP:/workspace/aelif/:/workspace/aelif/aelif_augmentation_inference/:/workspace/aelif:{PYTHONPATH}"
 # Install additional system dependencies if needed
@@ -25,7 +27,8 @@ RUN pip install --no-cache-dir \
     accelerate==1.2.1 \
     diffusers==0.32.1 \
     protobuf==5.29.3 \
-    sentencepiece==0.2.0
+    sentencepiece==0.2.0 \
+    scipy==1.15.1
 
 # Authenticate Hugging Face CLI
 RUN huggingface-cli login --token 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
@@ -51,7 +54,6 @@ COPY . /workspace/aelif
 # Set working directory
 WORKDIR /workspace/aelif
 
-RUN mkdir res
 # RUN /opt/conda/bin/python main.py
 # # Run main.py as default
-CMD ["python3", "main.py"]
+# CMD ["python3", "main.py"]

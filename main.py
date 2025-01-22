@@ -1,11 +1,15 @@
 from omegaconf import OmegaConf
 import sys
+import os
 sys.path.append('../aelif_augmentation')
 sys.path.append('../aelif_augmentation/aelif_augmentation_inference')
 from aelif_augmentation_inference.aelif_inference_pipeline import AELIFAugmentationPipeline
 from aelif_augmentation_inference.schemas import AugmentationModel
 config = OmegaConf.load("config.yaml")
 
+res_dir = "res"
+if not os.path.exists(res_dir):
+    os.makedirs(res_dir)
 
 def main():
     config = OmegaConf.load("config.yaml")

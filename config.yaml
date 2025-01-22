@@ -1,5 +1,5 @@
 prompts_file_path: 'prompts.json'
-standard_deviations: [0, 0.1, 1, 10, 100]
+standard_deviations: [100, 200, 1000]
 augmentation_types:
     noise_conv : true
     mask: false
