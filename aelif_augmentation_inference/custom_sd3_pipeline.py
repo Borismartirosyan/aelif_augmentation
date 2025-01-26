@@ -219,8 +219,6 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
         else:
           augmented_embeddings = aelif_function_name(text_embeddings, percentage=percentage, generator=generator, mean=mean_aelif, std=std_aelif)
 
-        #print(text_embeddings_copy == augmented_embeddings) DEBUG
-
         return augmented_embeddings
 
     @staticmethod

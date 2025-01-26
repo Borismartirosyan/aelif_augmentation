@@ -7,3 +7,4 @@ accelerate==1.2.1
 diffusers==0.32.1 
 protobuf==5.29.3 
 sentencepiece==0.2.0
+scipy==1.15.1

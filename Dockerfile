@@ -28,7 +28,10 @@ RUN pip install --no-cache-dir \
     diffusers==0.32.1 \
     protobuf==5.29.3 \
     sentencepiece==0.2.0 \
-    scipy==1.15.1
+    scipy==1.15.1 \
+    pandas \
+    peft \
+    pyarrow
 
 # Authenticate Hugging Face CLI
 RUN huggingface-cli login --token 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
