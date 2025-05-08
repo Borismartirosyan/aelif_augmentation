@@ -42,9 +42,9 @@ WORKDIR /workspace
 RUN mkdir -p /root/.cache/huggingface/
 
 # Clone and install diffusers
-# RUN git clone https://github.com/Borismartirosyan/diffusers.git \
-#     && cd diffusers \
-#     && pip install -e .
+RUN git clone https://github.com/Borismartirosyan/diffusers.git \
+    && cd diffusers \
+    && pip install -e .
 
 # Clone and install CLIP
 RUN git clone https://github.com/openai/CLIP.git \
@@ -57,6 +57,9 @@ COPY . /workspace/aelif
 # Set working directory
 WORKDIR /workspace/aelif
 
-# RUN /opt/conda/bin/python main.py
-# # Run main.py as default
-# CMD ["python3", "main.py"]
+RUN /opt/conda/bin/python main.py
+
+
+PYTHONPATH="/home/jupyter/:/home/jupyter/aelif_augmentation/diffusers/:/home/jupyter/CLIP:/home/jupyter/aelif_augmentation/:/home/jupyter/aelif_augmentation/aelif_augmentation_inference/:/home/jupyter/aelif_augmentation/:{PYTHONPATH}"
+
+# docker run -it --gpus all -v /home/jupyter/aelif_augmentation/:/workspace/aelif -v /home/jupyter/aelif_augmentation/cache/huggingface/:/root/.cache/huggingface/  -v /home/jupyter/diffusers/:/diffusers/ aelif bash
