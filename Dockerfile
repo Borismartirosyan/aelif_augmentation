@@ -34,7 +34,7 @@ RUN pip install --no-cache-dir \
     pyarrow
 
 # Authenticate Hugging Face CLI
-RUN huggingface-cli login --token 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
+RUN huggingface-cli login --token <your hf token>
 
 # Set working directory
 WORKDIR /workspace
